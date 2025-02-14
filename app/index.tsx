@@ -21,10 +21,20 @@ export default function App() {
     }
     setValue("");
   };
+
+  const handleDelete = (id: string) => {
+    const newShoppingList = shoppingList.filter((item) => item.id !== id);
+    setShoppingList(newShoppingList);
+  };
   return (
     <FlatList
       data={shoppingList}
-      renderItem={({ item }) => <ShoppingListItem name={item.name} />}
+      renderItem={({ item }) => (
+        <ShoppingListItem
+          name={item.name}
+          onDelete={() => handleDelete(item.id)}
+        />
+      )}
       stickyHeaderIndices={[0]}
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
@@ -45,7 +55,11 @@ export default function App() {
       }
     >
       {shoppingList.map((item) => (
-        <ShoppingListItem key={item.id} name={item.name} />
+        <ShoppingListItem
+          key={item.id}
+          name={item.name}
+          onDelete={() => handleDelete(item.id)}
+        />
       ))}
     </FlatList>
   );
