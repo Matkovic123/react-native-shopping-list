@@ -1,3 +1,5 @@
+import Entypo from "@expo/vector-icons/Entypo";
+
 import AntDesign from "@expo/vector-icons/AntDesign";
 import {
   Alert,
@@ -5,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { theme } from "../theme";
 
@@ -49,14 +52,22 @@ export function ShoppingListItem({
         isCompleted ? styles.completedContainer : undefined,
       ]}
     >
-      <Text
-        style={[
-          styles.itemText,
-          isCompleted ? styles.completedText : undefined,
-        ]}
-      >
-        {name}
-      </Text>
+      <Entypo
+        name={isCompleted ? "check" : "circle"}
+        size={24}
+        color={isCompleted ? theme.colorGrey : theme.colorCerulian}
+      />
+      <View style={styles.row}>
+        <Text
+          // numberOfLines={1}
+          style={[
+            styles.itemText,
+            isCompleted ? styles.completedText : undefined,
+          ]}
+        >
+          {name}
+        </Text>
+      </View>
       <TouchableOpacity onPress={handleDelete} activeOpacity={0.8}>
         {/* got icons from https://icons.expo.fyi/Index */}
         <AntDesign
@@ -86,10 +97,17 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 18,
     fontWeight: "200",
+    flex: 1,
   },
   completedText: {
     textDecorationLine: "line-through",
     textDecorationColor: theme.colorGrey,
     color: theme.colorGrey,
+  },
+  row: {
+    marginLeft: 8,
+    flexDirection: "row",
+    gap: 8,
+    flex: 1,
   },
 });
