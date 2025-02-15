@@ -8,11 +8,12 @@ import {
   TextInput,
   UIManager,
   View,
+  Vibration,
 } from "react-native";
 import { ShoppingListItem } from "../components/ShoppingListItem";
 import { theme } from "../theme";
 import { getFromStorage, saveToStorage } from "../utils/storage";
-
+import * as Haptics from "expo-haptics";
 if (Platform.OS === "android") {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -43,6 +44,7 @@ export default function App() {
   }, []);
 
   const handleSubmit = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (value) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setShoppingList([
@@ -59,6 +61,7 @@ export default function App() {
   };
 
   const handleDelete = (id: string) => {
+    Vibration.vibrate(200, true);
     const newShoppingList = shoppingList.filter((item) => item.id !== id);
     saveToStorage(storageKey, shoppingList);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -68,6 +71,11 @@ export default function App() {
   const handleToggleComplete = (id: string) => {
     const newShoppingList = shoppingList.map((item) => {
       if (item.id === id) {
+        if (item.completedAtTimestamp) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } else {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
         return {
           ...item,
           completedAtTimestamp: item.completedAtTimestamp
