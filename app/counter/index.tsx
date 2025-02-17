@@ -4,12 +4,20 @@ import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
 import { useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { TimeSegment } from "../../components/TimeSegment";
 import { theme } from "../../theme";
 import { registerForPushNotificationsAsync } from "../../utils/registerForPushNotificationsAsync";
-import { TimeSegment } from "../../components/TimeSegment";
+import { getFromStorage, saveToStorage } from "../../utils/storage";
 
-//10s from now
-const timeStamp = Date.now() + 10 * 1000;
+//10s in ms
+const frequency = 10 * 1000;
+
+const countdownStorageKey = "tasklyCountdown";
+
+type PersistedCountdownState = {
+  currentNotificationId: string | undefined;
+  completedAtTimestamps: number[];
+};
 
 type CountdownStatus = {
   isOverdue: boolean;
@@ -17,58 +25,87 @@ type CountdownStatus = {
 };
 
 export default function CounterScreen() {
-  const [countdownStatus, setCountdownStatus] = useState<CountdownStatus>({
+  const [countdownState, setCountdownState] =
+    useState<PersistedCountdownState>();
+  const [status, setStatus] = useState<CountdownStatus>({
     isOverdue: false,
     distance: {},
   });
+
+  const lastCompletedAt = countdownState?.completedAtTimestamps[0];
+
+  useEffect(() => {
+    const init = async () => {
+      const value = await getFromStorage(countdownStorageKey);
+      setCountdownState(value);
+    };
+    init();
+  }, []);
   useEffect(() => {
     const intervalId = setInterval(() => {
-      const isOverdue = isBefore(timeStamp, Date.now());
+      const timestamp = lastCompletedAt
+        ? lastCompletedAt + frequency
+        : Date.now();
+      const isOverdue = isBefore(timestamp, Date.now());
       const distance = intervalToDuration(
         isOverdue
-          ? { start: timeStamp, end: Date.now() }
-          : { start: Date.now(), end: timeStamp },
+          ? { start: timestamp, end: Date.now() }
+          : { start: Date.now(), end: timestamp },
       );
-      setCountdownStatus({ isOverdue, distance });
+      setStatus({ isOverdue, distance });
     }, 1000);
     return () => clearInterval(intervalId); // basically onUnmount
-  }, []);
+  }, [lastCompletedAt]);
 
-  console.log(countdownStatus);
+  console.log(status);
 
   const scheduleNotification = async () => {
+    let pushNotificationId;
     const result = await registerForPushNotificationsAsync();
     if (result === "granted") {
-      await Notifications.scheduleNotificationAsync({
+      pushNotificationId = await Notifications.scheduleNotificationAsync({
         content: {
-          title: "Scheduled Notification from your app",
+          title: "The thing is due!",
         },
         trigger: {
           type: SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: 5,
+          seconds: frequency / 1000,
         },
       });
       console.log(result);
     } else {
       if (Device.isDevice) {
         Alert.alert(
-          "Unable to schedule notification. enable notification permissions in settings for Expo Go",
+          "Unable to schedule notification. Enable notification permissions in settings for Expo Go",
         );
       }
     }
+    if (countdownState?.currentNotificationId) {
+      await Notifications.cancelScheduledNotificationAsync(
+        countdownState.currentNotificationId,
+      );
+    }
+    const newCountdownState: PersistedCountdownState = {
+      currentNotificationId: pushNotificationId,
+      completedAtTimestamps: countdownState
+        ? [Date.now(), ...countdownState.completedAtTimestamps]
+        : [Date.now()],
+    };
+    setCountdownState(newCountdownState);
+    await saveToStorage(countdownStorageKey, newCountdownState);
   };
   return (
     <View
       style={[
         styles.container,
-        countdownStatus.isOverdue ? styles.containerLate : undefined,
+        status.isOverdue ? styles.containerLate : undefined,
       ]}
     >
-      {countdownStatus.isOverdue ? (
+      {status.isOverdue ? (
         <Text
           style={[
             styles.heading,
-            countdownStatus.isOverdue ? styles.whiteText : undefined,
+            status.isOverdue ? styles.whiteText : undefined,
           ]}
         >
           Time is up
@@ -81,23 +118,23 @@ export default function CounterScreen() {
       <View style={styles.row}>
         <TimeSegment
           unit="Days"
-          number={countdownStatus.distance.days || 0}
-          textStyle={countdownStatus.isOverdue ? styles.whiteText : undefined}
+          number={status.distance.days || 0}
+          textStyle={status.isOverdue ? styles.whiteText : undefined}
         />
         <TimeSegment
           unit="Hours"
-          number={countdownStatus.distance.hours || 0}
-          textStyle={countdownStatus.isOverdue ? styles.whiteText : undefined}
+          number={status.distance.hours || 0}
+          textStyle={status.isOverdue ? styles.whiteText : undefined}
         />
         <TimeSegment
           unit="Minutes"
-          number={countdownStatus.distance.minutes || 0}
-          textStyle={countdownStatus.isOverdue ? styles.whiteText : undefined}
+          number={status.distance.minutes || 0}
+          textStyle={status.isOverdue ? styles.whiteText : undefined}
         />
         <TimeSegment
           unit="Seconds"
-          number={countdownStatus.distance.seconds || 0}
-          textStyle={countdownStatus.isOverdue ? styles.whiteText : undefined}
+          number={status.distance.seconds || 0}
+          textStyle={status.isOverdue ? styles.whiteText : undefined}
         />
       </View>
       <TouchableOpacity
